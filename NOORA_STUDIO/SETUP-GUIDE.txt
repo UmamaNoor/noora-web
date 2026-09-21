@@ -1,0 +1,57 @@
+NOORA STUDIO — SUPABASE ORDERS + ADMIN DASHBOARD
+================================================
+
+WHAT'S INCLUDED
+- Existing coming-soon storefront (no product photos added)
+- Pre-launch interest/order-request form connected to Supabase
+- Admin dashboard (admin.html) with sign-in, order list and status updates
+- SQL security policies (supabase/setup.sql)
+- Server-side email notification Edge Function (Resend) for Supabase Database Webhooks
+- Supabase browser config (supabase-config.js) populated with the Project URL and publishable key supplied by the owner
+
+IMPORTANT CURRENT LIMITATIONS
+- This is a pre-launch interest request, NOT a confirmed purchase or payment checkout. There are no products/prices in the current coming-soon storefront.
+- Supabase policies, Auth admin user, Edge Function, webhook and email provider still need to be configured in the Supabase account before this can work end-to-end.
+- Never put a Supabase secret/service_role key, database password, Resend API key or webhook secret in browser files.
+
+STEP 1 — RUN THE SQL
+1. Open Supabase Dashboard > your NOORA-STUDIO project > SQL Editor.
+2. Open supabase/setup.sql from this package and paste it into a new SQL query.
+3. Run it. This enables restrictive RLS policies. Visitors can INSERT requests; only the configured admin email can SELECT orders and UPDATE order_status.
+4. The policy is currently configured for: manomalik3817@gmail.com
+
+STEP 2 — CREATE THE ADMIN LOGIN
+1. Supabase Dashboard > Authentication > Users > Add user.
+2. Create/confirm an account for manomalik3817@gmail.com and set a strong password.
+3. Use that account on admin.html. Do not share the password.
+
+STEP 3 — DEPLOY EMAIL NOTIFICATION FUNCTION (requires Resend)
+Prerequisites: install Supabase CLI and sign in/link the project.
+From the NOORA_STUDIO folder, deploy the function:
+  supabase functions deploy order-notification --no-verify-jwt
+
+Set these server-side function secrets (replace placeholders locally; never commit/share them):
+  supabase secrets set RESEND_API_KEY=re_xxxxxxxxx OWNER_EMAIL=manomalik3817@gmail.com ORDER_WEBHOOK_SECRET=use-a-long-random-secret
+
+The function sends email through Resend. Verify a sender/domain with Resend before using a production sender. The sample uses Resend's onboarding sender for initial testing; deliverability/verification may limit production use.
+
+STEP 4 — CREATE THE DATABASE WEBHOOK
+In Supabase Dashboard, create a Database Webhook on schema public, table orders, event INSERT.
+- Method: POST
+- URL: https://ukcrwtmxeicbgejrdaxk.supabase.co/functions/v1/order-notification
+- Header: x-noora-webhook-secret: (the exact ORDER_WEBHOOK_SECRET value you configured)
+- Payload: standard Supabase Database Webhook payload, including type, table and record.
+Keep the webhook secret private. Do not add it to HTML/JS.
+
+STEP 5 — TEST
+1. Host the NOORA_STUDIO folder on a web server (or local static server; opening file:// may cause browser restrictions).
+2. Submit a test request using the storefront form.
+3. Confirm a row appears in Supabase > Table Editor > orders.
+4. Confirm the email arrives at OWNER_EMAIL.
+5. Open admin.html, sign in with the admin Auth user, and test status update.
+
+IF SOMETHING FAILS
+- “permission denied” / empty dashboard: verify setup.sql ran, admin user email matches the policy, and user is signed in.
+- Request doesn't save: check browser console and Supabase API/RLS settings; verify all expected column names exist.
+- Email doesn't arrive: check Edge Function logs, Resend API key/sender verification, and webhook URL/header secret.
+- Keep the orders table RLS enabled. Do not create a public SELECT policy.
